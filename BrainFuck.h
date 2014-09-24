@@ -1,24 +1,11 @@
 #pragma once
 #include <string>
-#include "TuringTape.h"
-#define DEBUG
+#include "TuringTape.cpp"
 
 typedef unsigned short instruction;
+typedef unsigned char byte;
 
 class BrainFuck {
-public:
-	BrainFuck(char* p, size_t t = 10) : program(p), tape(t) {};
-	BrainFuck(std::string p, size_t t = 10) : tape(t) {
-		this->program = new char[p.size() + 1];
-		std::copy(p.begin(), p.end(), this->program);
-		this->program[ p.size() ] = '\0'; // don't forget the terminating 0
-	};
-
-	bool validate();
-	BrainFuck& compile();
-	BrainFuck& run();
-
-private:
 	// program tokens
 	char* program;
 
@@ -34,12 +21,46 @@ private:
 	// optimize BF
 	BrainFuck& opitmize();
 
+	/**
+	 * Runs an operation
+	 * @return the next instruction to execute
+	 */
+	instruction execute(instruction);
+
 	// data storage
-	TuringTape tape;
+	TuringTape<byte> tape;
 
 	// points to operating TOKEN in program
 	instruction PC;
 
 	// list of jumps to use
 	instruction* jumps;
+
+public:
+	BrainFuck(char* p, size_t t = 10) : program(p), tape(t) {};
+	BrainFuck(std::string p, size_t t = 10) : tape(t) {
+		this->program = new char[p.size() + 1];
+		std::copy(p.begin(), p.end(), this->program);
+		this->program[ p.size() ] = '\0'; // don't forget the terminating 0
+	};
+
+	/**
+	 * Verifies the program
+	 */
+	bool validate();
+
+	/**
+	 * Compresses and makes the jump table
+	 */
+	BrainFuck& compile();
+
+	/**
+	 * Runs the program
+	 */
+	BrainFuck& run();
+
+	/**
+	 * Shows Tape as it executes program
+	 */
+	BrainFuck& debug();
 };

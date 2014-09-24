@@ -1,15 +1,16 @@
 #pragma once
 #include "BrainFuck.h"
 #include <stack>
+#include <iostream>
 
 BrainFuck& BrainFuck::makeJumps() {
 	std::stack< instruction > loops;
 	instruction tmp;
 
-	this->jumps = (instruction*)malloc(this->size * sizeof(instruction));
+	jumps = (instruction*)malloc(size * sizeof(instruction));
 
-	for(instruction i=0; i<this->size; i++)
-		switch(this->program[ i ]) {
+	for(instruction i=0; i<size; i++)
+		switch(program[ i ]) {
 		case '[':
 		case '(':
 			loops.push( i ); // add loop start to stack
@@ -21,12 +22,12 @@ BrainFuck& BrainFuck::makeJumps() {
 			loops.pop();
 
 			// add unconditional jump to start of loop
-			//this->jumps[ i ].check	= false;
-			this->jumps[ i ]		= tmp;
+			//jumps[ i ].check	= false;
+			jumps[ i ]		= tmp;
 
 			// add conditional jump to end of loop
-			//this->jumps[ tmp ].check	= true;
-			this->jumps[ tmp ]		= i;
+			//jumps[ tmp ].check	= true;
+			jumps[ tmp ]		= i;
 
 			break;
 		}
@@ -36,10 +37,10 @@ BrainFuck& BrainFuck::makeJumps() {
 
 BrainFuck& BrainFuck::compress() {
 	char* tmp = (char*)malloc(1024);
-	this->size = 0;
+	size = 0;
 
 	do {
-		switch(*this->program) {
+		switch(*program) {
 		case '+':
 		case '-':
 		case '>':
@@ -51,126 +52,123 @@ BrainFuck& BrainFuck::compress() {
 
 		case '(':
 		case ')':
-			tmp[ this->size++ ] = *this->program;
+			tmp[ size++ ] = *program;
 		}
-	} while(*(this->program++));
+	} while(*(program++));
 
 	// end string
-	tmp[ this->size ] = '\0';
+	tmp[ size ] = '\0';
 
-	this->program = tmp;
+	program = tmp;
 
 	return *this;
 }
 
 BrainFuck& BrainFuck::compile() {
-	this->compress();
-	this->makeJumps();
+	compress();
+	makeJumps();
 	return *this;
+}
+
+instruction BrainFuck::execute(instruction on) {
+	switch(program[ on ]) {
+	case '+': // increment
+		tape.inc();
+		break;
+
+	case '-': // decrement
+		tape.dec();
+		break;
+
+	case '>': // shift right
+		tape.right();
+		break;
+
+	case '<': // shift left
+		tape.left();
+		break;
+
+	case '[': // if false jump after ]
+		if(!tape.get()) // false; skip the loop
+			on = jumps[ on ];
+		break;
+
+	case ']': // jump to [ "unconditional"
+		// on = jumps[ on ]
+		if(tape.get())
+			on = jumps[ on ];
+		break;
+
+	case ',': // input byte
+		tape.set( getchar() );
+		break;
+		
+	case '.': // output byte
+		// output[ outlen++ ] = tape.get();
+		putchar( tape.get() );
+		break;
+
+	//////////////////////
+	// Custom BrainFuck //
+	//////////////////////
+
+	case '(': // continue if byte is true
+		if(!tape.get()) // false; skip to )
+			on = jumps[ on ];
+		break;
+
+	case ')': // ignore
+		break;
+	}
+	
+	// goto next instruction
+	return on + 1;
 }
 
 BrainFuck& BrainFuck::run() {
 	system("cls");
 
+	for(
+		PC = 0;				// start at beginning
+		PC < size;			// dont past the end
+		PC = execute(PC)	// do stuff and get the next
+	);
+
+	return *this;
+}
+
+BrainFuck& BrainFuck::debug() {
+	instruction prePC;
+	std::string output;
+	bool wait = true;
+
 	// start at beginning
-	this->PC = 0;
+	PC = 0;
 
-	#ifdef DEBUG
-		instruction prePC;
-		char output[100] = "";
-		int outlen = 0;
-	#endif
+	while(PC < size) {
+		// run it!
+		prePC = PC;
+		PC = execute( PC );
 
-	while(this->PC < this->size) {
-		#ifdef DEBUG
-			prePC = this->PC;
-		#endif
+		system("cls");
 
-		switch(this->program[ this->PC ]) {
-		case '+': // increment
-			this->tape.inc();
-			this->PC++;
-			break;
+		// output
+		if(program[ prePC ] == '.')
+			output.push_back( (char)tape.get() );
 
-		case '-': // decrement
-			this->tape.dec();
-			this->PC++;
-			break;
+		// give stats
+		printf("Command: %c\t\tPC: %d -> %d\n", program[ prePC ], prePC+1, PC+1);
 
-		case '>': // shift right
-			this->tape.right();
-			this->PC++;
-			break;
+		// show data
+		this->tape.show();
 
-		case '<': // shift left
-			this->tape.left();
-			this->PC++;
-			break;
+		// output if any
+		if(!output.empty())
+			std::cout << output; // << std::endl << std::endl;
 
-		case '[': // if false jump after ]
-			if(!this->tape.get()) // false; skip the loop
-				this->PC = this->jumps[ this->PC ] +1;
-			else
-				this->PC++;
-			break;
-
-		case ']': // jump to [ "unconditional"
-			// this->PC = this->jumps[ this->PC ]
-			if(this->tape.get())
-				this->PC = this->jumps[ this->PC ] +1;
-			else
-				this->PC++;
-			break;
-
-		case ',': // input byte
-			// byte t;
-			// printf("Input: ");
-			// scanf_s(" %c", &t);
-			this->tape.set( getchar() );
-
-			this->PC++;
-			break;
-		
-		case '.': // output byte
-			#ifdef DEBUG
-				output[ outlen++ ] = this->tape.get();
-			#else
-				putchar( this->tape.get() );
-			#endif
-
-			this->PC++;
-			break;
-
-		//////////////////////
-		// Custom BrainFuck //
-		//////////////////////
-
-		case '(': // continue if byte is true
-			if(!this->tape.get()) // false; skip to )
-				this->PC = this->jumps[ this->PC ];
-			else
-				this->PC++;
-			break;
-
-		case ')': // ignore
-			this->PC++;
-			break;
-		}
-
-		#ifdef DEBUG
-			system("cls");
-
-			//printf("%s\n", this->program);
-			//printf("%.*s%c\n", (this->PC < 1) ? 0 : this->PC-1, "                                                                                 ", '_');
-			
-			printf("Command: %c\t\tPC: %d -> %d\n", this->program[ prePC ], prePC+1, this->PC+1);
-			this->tape.show();
-
-			if(outlen)
-				printf("%s", output);
-
-			getchar();
-		#endif
+		if(wait)
+			if(getchar() != '\n')
+				wait = false;
 	}
 
 	return *this;

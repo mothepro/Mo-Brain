@@ -18,7 +18,7 @@ int main() {
 	} while(!line.empty());
 
 	BrainFuck b(prog, s);
-	b.compile().run();
+	b.compile().debug();
 
 	getchar();
 	return 0;
