@@ -4,6 +4,8 @@
 
 template <class T>
 TuringTape<T>::TuringTape(size_t len) {
+	if(len == 0) len = 1024;
+
 	this->size = len;
 	this->start = (T*)calloc(this->size, sizeof(T)); // new T[ this->size ];
 	this->ptr = this->start;
